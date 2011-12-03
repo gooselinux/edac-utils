@@ -1,0 +1,172 @@
+diff --git a/src/etc/Makefile.am b/src/etc/Makefile.am
+index e4afdbd..85d83db 100644
+--- a/src/etc/Makefile.am
++++ b/src/etc/Makefile.am
+@@ -10,9 +10,9 @@ EXTRA_DIST = \
+ 	edac.init
+ 
+ install-data-local:
+-	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/init.d"; \
++	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/rc.d/init.d"; \
+ 	$(INSTALL) -m 755 $(srcdir)/edac.init \
+-	    "$(DESTDIR)$(sysconfdir)/init.d/edac"; \
++	    "$(DESTDIR)$(sysconfdir)/rc.d/init.d/edac"; \
+ 	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/edac/"; \
+ 	$(INSTALL) -m 644 $(srcdir)/driver.db $(srcdir)/labels.db \
+ 	    "$(DESTDIR)$(sysconfdir)/edac/"; 
+diff --git a/src/etc/Makefile.in b/src/etc/Makefile.in
+index 59623e7..deb4351 100644
+--- a/src/etc/Makefile.in
++++ b/src/etc/Makefile.in
+@@ -325,9 +325,9 @@ uninstall-am: uninstall-info-am
+ 
+ 
+ install-data-local:
+-	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/init.d"; \
++	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/rc.d/init.d"; \
+ 	$(INSTALL) -m 755 $(srcdir)/edac.init \
+-	    "$(DESTDIR)$(sysconfdir)/init.d/edac"; \
++	    "$(DESTDIR)$(sysconfdir)/rc.d/init.d/edac"; \
+ 	$(INSTALL) -m 755 -d "$(DESTDIR)$(sysconfdir)/edac/"; \
+ 	$(INSTALL) -m 644 $(srcdir)/driver.db $(srcdir)/labels.db \
+ 	    "$(DESTDIR)$(sysconfdir)/edac/"; 
+diff --git a/src/etc/edac.init b/src/etc/edac.init
+old mode 100644
+new mode 100755
+index 0d59ef2..624f7d5
+--- a/src/etc/edac.init
++++ b/src/etc/edac.init
+@@ -1,100 +1,65 @@
+ #!/bin/sh
+-###############################################################################
+-# $Id: edac.init 4265 2007-05-07 21:39:23Z grondo $
+-###############################################################################
+-# Copyright (C) 2006-2007 The Regents of the University of California.
+-# Produced at Lawrence Livermore National Laboratory.
+-# Written by Mark Grondona <mgrondona@llnl.gov>
+-# UCRL-CODE-230739.
+-###############################################################################
+-# chkconfig:      - 40 60
+-###############################################################################
++#
++# edac	Startup script to load EDAC memory labels
++#
++# chkconfig:	345 40 60
++# description:	Startup	script to load EDAC memory labels
++
+ ### BEGIN INIT INFO
+ # Provides:       edac
+ # Required-Start: $named $time
+-# Default-Stop:   0 1 2 6
++# Default-Start:  3 4 5
+ # Description:    Initialize EDAC drivers for machine hardware
+ # Short-Description: Initialize EDAC drivers for machine hardware
+ ### END INIT INFO
+-###############################################################################
+ 
+-if [ -f /etc/init.d/functions ] ; then
+-	. /etc/init.d/functions
+-elif [ -f /etc/rc.d/init.d/functions ] ; then
+-	. /etc/rc.d/init.d/functions
+-else
+-	exit 0;
+-fi
++. /etc/rc.d/init.d/functions
+ 
+-SERVICE="edac"
+-PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+ EDAC=/usr/sbin/edac-ctl
+-EDAC_UTIL=/usr/bin/edac-util
+-LOGGER="logger -t $SERVICE -p info"
+-SUBSYS=/var/lock/subsys/edac
++LOGGER="logger -t edac -p info"
+ 
+ ###############################################################################
+ 
+ service_start ()
+ {
+-# Start the service.  Required by LSB.
+-#
+-  echo -n "Starting ${SERVICE}: "
+-  $EDAC --register-labels 2>&1 | $LOGGER;
+-  rc=$?;
+-  if [ $rc -eq 0 ]; then
+-	daemon true;
+-	touch $SUBSYS;
+-  else
+-	daemon false;
+-  fi
+-  echo;
+-}
++  # If no EDAC driver is load, there's nothing to do. Just exit
++  #
++  [ -e /sys/devices/system/edac/mc/mc0/ ] || exit 0
+ 
+-###############################################################################
++  [ -x $EDAC ] || exit 5
++  echo -n "Loading EDAC memory labels: "
+ 
+-service_stop ()
+-{
+-  echo -n "Stopping ${SERVICE}: "
+-  daemon $EDAC --unload;
++  # Load EDAC tables at the kernel driver
++  #
++  $EDAC --register-labels 2>&1 | $LOGGER
+   rc=$?
+-  rm -f $SUBSYS;
+-  echo;
++  if [ $rc -eq 0 ]; then
++   daemon true
++  else
++   daemon false
++  fi
++  echo
+ }
+ 
+-###############################################################################
+-
+-service_status ()
++usage ()
+ {
+-# Print the current status of the service.  Required by LSB.
+-#
+-  $EDAC_UTIL --status
+-  rc=0
++    echo "Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+ }
+ 
+ ###############################################################################
+ 
+-rc=4
+-
++rc=0
+ case "$1" in
+-  start)
++  start|restart|reload|condrestart|try-restart|force-reload)
+     service_start
+     ;;
+-  stop)
+-    service_stop
+-    ;;
+-  status)
+-    service_status
++  stop|status)
+     ;;
+-  restart|reload)
+-    service_stop
+-    service_start
++  usage)
++    usage
+     ;;
+   *)
+-    COMMANDS="start|stop|status|restart|reload"
+-    echo "Usage: $0 {${COMMANDS}}"
+-    exit 1
+-    ;;
++    usage
++    exit 2
+ esac
+-exit $rc;
+-
++exit $rc

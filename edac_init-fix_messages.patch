@@ -1,0 +1,104 @@
+Index: edac-utils-0.9/src/etc/edac.init
+===================================================================
+--- edac-utils-0.9.orig/src/etc/edac.init
++++ edac-utils-0.9/src/etc/edac.init
+@@ -7,21 +7,31 @@
+ # Written by Mark Grondona <mgrondona@llnl.gov>
+ # UCRL-CODE-230739.
+ ###############################################################################
+-# chkconfig:      345 40 60
++# chkconfig:      - 40 60
+ ###############################################################################
+ ### BEGIN INIT INFO
+ # Provides:       edac
+ # Required-Start: $named $time
+-# Default-Start:  3 5
+ # Default-Stop:   0 1 2 6
+ # Description:    Initialize EDAC drivers for machine hardware
++# Short-Description: Initialize EDAC drivers for machine hardware
+ ### END INIT INFO
+ ###############################################################################
+ 
+-SERVICE="edac"
++if [ -f /etc/init.d/functions ] ; then
++	. /etc/init.d/functions
++elif [ -f /etc/rc.d/init.d/functions ] ; then
++	. /etc/rc.d/init.d/functions
++else
++	exit 0;
++fi
+ 
++SERVICE="edac"
+ PATH=/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin
+ EDAC=/usr/sbin/edac-ctl
++EDAC_UTIL=/usr/bin/edac-util
++LOGGER="logger -t $SERVICE -p info"
++SUBSYS=/var/lock/subsys/edac
+ 
+ ###############################################################################
+ 
+@@ -30,25 +40,26 @@ service_start ()
+ # Start the service.  Required by LSB.
+ #
+   echo -n "Starting ${SERVICE}: "
+-  $EDAC --quiet --load
+-  rc=$?
+-  $EDAC --register-labels
+-  case $rc in 
+-    0) echo success ;;
+-    5) echo No EDAC support for this hardware. ;;
+-    *) echo failure ;;
+-  esac
+-
++  $EDAC --register-labels 2>&1 | $LOGGER;
++  rc=$?;
++  if [ $rc -eq 0 ]; then
++	daemon true;
++	touch $SUBSYS;
++  else
++	daemon false;
++  fi
++  echo;
+ }
+ 
+ ###############################################################################
+ 
+ service_stop ()
+ {
+-  echo -n "Disabling ${SERVICE}: "
+-  $EDAC --unload
++  echo -n "Stopping ${SERVICE}: "
++  daemon $EDAC --unload;
+   rc=$?
+-  [ $rc -eq 0 ] && echo success || echo failure
++  rm -f $SUBSYS;
++  echo;
+ }
+ 
+ ###############################################################################
+@@ -57,7 +68,7 @@ service_status ()
+ {
+ # Print the current status of the service.  Required by LSB.
+ #
+-  $EDAC --status
++  $EDAC_UTIL --status
+   rc=0
+ }
+ 
+@@ -75,9 +86,15 @@ case "$1" in
+   status)
+     service_status
+     ;;
++  restart|reload)
++    service_stop
++    service_start
++    ;;
+   *)
+-    COMMANDS="start|stop|status"
++    COMMANDS="start|stop|status|restart|reload"
+     echo "Usage: $0 {${COMMANDS}}"
+     exit 1
+     ;;
+ esac
++exit $rc;
++

@@ -1,0 +1,13 @@
+Index: edac-utils-0.9/src/util/edac-ctl
+===================================================================
+--- edac-utils-0.9.orig/src/util/edac-ctl
++++ edac-utils-0.9/src/util/edac-ctl
+@@ -271,7 +271,7 @@ sub parse_dimm_labels
+         }
+         if (/(model|board)\s*:\s*(.*)$/i) {
+             !$vendor && die "$file: line $line: MB model without vendor\n";
+-            @models = split(/[, ]+/, $2);
++            @models = split(/,[\ ]*/, lc $2);
+             next;
+         }
+ 

@@ -1,0 +1,32 @@
+Index: edac-utils-0.9/src/util/edac-ctl
+===================================================================
+--- edac-utils-0.9.orig/src/util/edac-ctl
++++ edac-utils-0.9/src/util/edac-ctl
+@@ -78,27 +78,6 @@ if (  $conf{opt}{mainboard} || $conf{opt
+ 
+ }
+ 
+-if (  $conf{opt}{load} || $conf{opt}{unload} || $conf{opt}{status} 
+-   || $conf{opt}{driver} ) {
+-    if (!($conf{driver} = find_edac_driver ())) {
+-        print STDERR "No EDAC support for this hardware.\n";
+-    }
+-
+-    $conf{opt}{driver} && print "$conf{driver}_edac\n";
+-    $conf{opt}{status} && ($status = print_status ());
+-
+-    if ($conf{opt}{load}) {
+-        run_cmd ("$modprobe -a $conf{driver}_edac");
+-        my $rc = ($? >> 8); exit ($rc);
+-    } elsif ($conf{opt}{unload}) {
+-        run_cmd ("$modprobe -r $conf{driver}_edac");
+-        exit ($? >> 8);
+-    } elsif ($conf{opt}{status}) {
+-        exit ($status ? 0 : 1);
+-    }
+-}
+-
+-
+ exit (0);
+ 
+ sub parse_cmdline
